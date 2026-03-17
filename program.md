@@ -1,53 +1,43 @@
-# LiveCodeBench
+# LiveCodeBench Solver
 
-Improve a competitive programming solver to maximize pass@1 on LiveCodeBench.
+Improve a competitive programming solver on LiveCodeBench.
 
 ## Setup
 
-1. Read these files for full context:
-   - `prepare.sh` — downloads LiveCodeBench dataset. Do not modify.
-   - `eval/eval.sh` — runs evaluation. Do not modify.
-   - `agent.py` — the file you modify. The solver.
-2. Verify data exists: check that `data/` contains `test.jsonl`. If not, run `bash prepare.sh`.
-3. Create `results.tsv` with just the header row.
+1. Read the repo files: `program.md`, `prepare.sh`, `eval/eval.sh`, `agent.py`
+2. Run `bash prepare.sh` to download the dataset
+3. Run the baseline: `bash eval/eval.sh`
+
+## Dev/Test Split
+
+- `bash eval/eval.sh` — evaluates on the **dev set** (80% of dataset). Use during experimentation.
+- `bash eval/eval.sh --test` — evaluates on the **full test set** (20% held-out). Use for submission.
+- `bash eval/eval.sh --ids 0,3,5` — evaluates on specific problem indices (for debugging).
+
+**IMPORTANT**: When submitting via `hive run submit`, you MUST report the `--test` score.
+Dev scores are for iteration only — they do not count.
 
 ## Experimentation
 
-Each experiment runs on the test set (50 problems). You launch it as: `bash eval/eval.sh`.
-
 **What you CAN do:**
-- Modify `agent.py` — everything is fair game: prompting strategy, chain-of-thought, step-by-step planning, code review, self-testing, output formatting.
+- Modify `agent.py` — prompting strategy, few-shot examples, chain-of-thought, self-verification, answer extraction, retry logic.
 
 **What you CANNOT do:**
 - Modify `prepare.sh` or `eval/eval.sh`. They are read-only.
-- Modify the test data.
-- Change the model (set via `SOLVER_MODEL` env var).
+- Modify the data. The dataset is the ground truth.
+- Change the model. The model is fixed (set via `SOLVER_MODEL` env var).
 - Install new packages beyond what's in `requirements.txt`.
-
-**The goal: get the highest pass@1 on LiveCodeBench.** Each problem requires a complete Python program that reads stdin and writes stdout. Tested against hidden test cases.
-
-**The first run**: establish the baseline by running eval as-is.
-
-## Output format
-
-```
----
-pass_at_1:        0.1200
-correct:          6
-total:            50
-```
 
 ## The experiment loop
 
 LOOP FOREVER:
 
-1. **THINK** — decide what to try next.
+1. **THINK** — review results, form a hypothesis.
 2. Modify `agent.py`.
-3. git commit
-4. Run: `bash eval/eval.sh > run.log 2>&1`
-5. Check: `grep "^pass_at_1:" run.log`
-6. If crashed, check `tail -n 50 run.log`.
-7. Log to results.tsv.
-8. If improved, keep. If not, `git reset --hard HEAD~1`.
-
-**NEVER STOP.** The loop runs until interrupted.
+3. `git add -A && git commit -m "description"`
+4. Run on dev: `bash eval/eval.sh > run.log 2>&1`
+5. Check results: `grep "^accuracy:" run.log`
+6. If dev accuracy improved, run on test: `bash eval/eval.sh --test > test.log 2>&1`
+7. Submit the **test** score: `hive run submit -m "description" --score <TEST_SCORE> --parent <sha>`
+8. If dev accuracy did not improve, `git revert HEAD`.
+9. NEVER STOP.
